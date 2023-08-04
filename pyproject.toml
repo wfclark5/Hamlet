@@ -1,0 +1,63 @@
+[tool.pyright]
+reportGeneralTypeIssues = false
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.poetry]
+name = "AgTranslate"
+version = "0.1.0a"
+description = ""
+authors = ["wclark <wclark@xby2.com>"]
+readme = "README.md"
+#packages = [{include = "src"}]
+
+[tool.poetry.dependencies]
+python = ">=3.9,<3.9.7 || >3.9.7,<3.12"
+typer = "^0.9.0"
+openai = "^0.27.8"
+tomlkit = "^0.11.8"
+azure-identity = "^1.13.0"
+langchain = "^0.0.194"
+streamlit = "^1.23.1"
+
+[project]
+name="AgTranslate"
+version="0.1.0a"
+readme="README.md"
+description="A Python package for translating Angular to Angular2"
+requires-python=">=3.9"
+dependencies = [
+    "typer[all]",
+    "openai",
+    "tomlkit",
+    "azure-identity",
+]
+
+classifiers= [
+    "Natural Language :: English",              
+    "Intended Audience :: Developers",              
+    "Intended Audience :: System Administrators",              
+    "Programming Language :: Python :: 3 :: Only",              
+    "Programming Language :: Python :: 3.8",              
+    "Programming Language :: Python :: 3.9",              
+    "Programming Language :: Python :: 3.10",              
+    "Topic :: Software Development :: Libraries"
+]
+
+[project.optional-dependencies]
+dev= [
+    "black", 
+    "pre-commit"
+]
+
+[project.scripts]
+agtranslate= "cli:app"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.black]
+line-length = 80
+skip-string-normalization = true

@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Overture Themes with Daylight Layers</title>
+    <meta property="og:description" content="" />
+    <meta charset='utf-8'>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Londrina+Solid:wght@300&display=swap" rel="stylesheet">
+
+    <!-- Map Libre -->
+    <link rel='stylesheet' href='https://unpkg.com/maplibre-gl@3.2.1/dist/maplibre-gl.css' crossorigin="anonymous">
+    <script src='https://unpkg.com/maplibre-gl@3.2.1/dist/maplibre-gl.js' crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/pmtiles@2.5.0/dist/index.js"></script>
+
+    <!-- Page CSS -->
+    <link rel='stylesheet', href="site_light.css" type="text/css">
+
+    <!-- Map Styles -->
+    <script src="styles/light/buildings.js"></script>
+    <script src="styles/light/earth.js"></script>
+    <script src="styles/light/transportation.js"></script>
+    <script src="styles/light/placenames.js"></script>
+</head>
+
+<body>
+    <!-- The header -->
+    <header>
+        <h1>Overture + Daylight</h1>
+    </header>
+    <div id="map"></div>
+    <div class="box">
+        <!-- Individual buttons for layer control -->
+        <div class="layer-control">
+            <button class="layer-button active" id='roads', onclick="toggleLayerGroup('roads')"> <img src="img/overture.png" class='inline'> Roads</button>
+            <button class="layer-button active" id='places', onclick="toggleLayerGroup('places')"><img src="img/overture.png" class='inline'> Places</button>
+            <input type="range" class='slider' id="placesThreshold" oninput="filterPlaces(this.value)" min="0" max="99" value="75">
+            <br>
+            <button class="layer-button active" id='allBuildingsButton', onclick="toggleAllBuildings()"><img src="img/overture.png" class='inline'> Buildings</button>
+                <label id="osm" class='sub-layer active' for="osm"><input type="checkbox" checked="checked" id="osm_checkbox" name="osm" onclick="toggleBuildings('osm')"> OSM</label>
+                <label id="msft" class='sub-layer active' for="msft"><input type="checkbox" checked="checked"  id="msft_checkbox" name="msft" onclick="toggleBuildings('msft')"> MSFT</label>
+                <label id="esri" class='sub-layer active' for="esri"><input type="checkbox" checked="checked"  id="esri_checkbox" name="esri" onclick="toggleBuildings('esri')">Esri</label>
+
+            <br><hr>
+            <button class="layer-button active" id='landcover' onclick="toggleLayerGroup('landcover')"><img src="img/daylight.png" class='inline'> Land</button>
+            <button class="layer-button active" id='water' onclick="toggleLayerGroup('water')"><img src="img/daylight.png" class='inline'> Water</button>
+            <button class="layer-button active" id='placenames' onclick="toggleLayerGroup('placenames')"><img src="img/daylight.png" class='inline'> Placenames</button>
+            <hr>
+        </div>
+
+        <div class="action-control">
+            <button class="action-button" onclick="turnOnExtrudedBuildings()">Extruded Buildings View</button>
+            <button class="action-button" onclick="resetMap()">Reset 2D View</button>
+            <a href="index.html"><button class="action-button">Dark Version</button></a>
+        </div>
+
+        <!-- Buttons container -->
+        <div class="buttons-container">
+            <!-- Buttons for different cities -->
+            <button class="zoom-button" onclick="zoomToCity([-122.332027, 47.603323])">Seattle</button>
+            <button class="zoom-button" onclick="zoomToCity([-122.674195, 45.520247])">Portland</button>
+            <button class="zoom-button" onclick="zoomToCity([-123.121644, 49.282730])">Vancouver</button>
+            <button class="zoom-button" onclick="zoomToCity([-122.444290, 47.252877])">Tacoma</button>
+            <button class="zoom-button" onclick="zoomToCity([-123.035094, 44.942897])">Salem</button>
+        </div>
+    </div>
+</body>
+
+</html>
+
+</html>
+<script>
+    // add the PMTiles plugin to the maplibregl global.
+    let protocol = new pmtiles.Protocol();
+    maplibregl.addProtocol("pmtiles", protocol.tile);
+
+    let buildingsurl = "tiles/buildings_z13.pmtiles";
+    let landurl = "tiles/land.pmtiles";
+    let placenamesurl = "tiles/placenames.pmtiles";
+    let placesurl = "tiles/places.pmtiles";
+    let roadsurl = "tiles/roads_z11.pmtiles";
+    let waterurl = "tiles/water.pmtiles";
+
+    const map = new maplibregl.Map({
+        center: [-122.332027, 47.603323],
+        zoom: 14,
+        container: 'map',
+        antialias: true,
+        minZoom: 10,
+        hash:true,
+        style: {
+            version: 8,
+            glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
+            sources: {
+                roads: {
+                    type: "vector",
+                    url: "pmtiles://" + roadsurl
+                },
+                buildings: {
+                    type: "vector",
+                    url: "pmtiles://" + buildingsurl,
+                    maxzoom: 13,
+                },
+                land: {
+                    type: "vector",
+                    url: "pmtiles://" + landurl
+                },
+                water: {
+                    type: "vector",
+                    url: "pmtiles://" + waterurl
+                },
+                places: {
+                    type: "vector",
+                    url: "pmtiles://" + placesurl
+                },
+                placenames: {
+                    type: "vector",
+                    url: "pmtiles://" + placenamesurl
+                }
+            },
+            layers: [
+                {
+                    "id": "background",
+                    "type": "background",
+                    "minzoom": 0,
+                    "maxzoom": 24,
+                    "paint": {
+                        "background-color": "hsl(216,20%,95%)"
+                    }
+                },
+                // Context Layers from Daylight Earth Table
+                EARTH.land,
+                EARTH.sand,
+                EARTH.wetland,
+                EARTH.forest,
+                EARTH.water,
+
+                // Overture Transportation Layers
+                TRANSPORTATION.footwayCasing,
+                TRANSPORTATION.footway,
+                TRANSPORTATION.parkingAisleUnknownCasing,
+                TRANSPORTATION.residentialCasing,
+                TRANSPORTATION.secondaryTertiaryCasing,
+                TRANSPORTATION.primaryCasing,
+                TRANSPORTATION.parkingAisleUnknown,
+                TRANSPORTATION.residential,
+                TRANSPORTATION.secondaryTertiary,
+                TRANSPORTATION.primary,
+                TRANSPORTATION.motorwayCasing,
+                TRANSPORTATION.motorway,
+
+                // Overture Building Layers
+
+                // Building Offsets
+                BUILDINGS_2D.buildingOffset_osm,
+                BUILDINGS_2D.buildingOffset_esri,
+                BUILDINGS_2D.buildingOffset_msft,
+
+                // Buildings
+                BUILDINGS_2D.building_osm,
+                BUILDINGS_2D.building_esri,
+                BUILDINGS_2D.building_msft,
+
+                // Extruded Buildings
+                BUILDINGS_3D.buildingExtruded_osm,
+                BUILDINGS_3D.buildingExtruded_msft,
+                BUILDINGS_3D.buildingExtruded_esri,
+
+                TRANSPORTATION.residentialLabel,
+                TRANSPORTATION.highwayLabel,
+
+                // Building Labels by Source
+                BUILDINGS_2D.buildingLabel_osm,
+                BUILDINGS_2D.buildingLabel_esri,
+
+
+
+                // Overture Places
+                {
+                    "id": "placesLabel",
+                    "type": "symbol",
+                    "source": "places",
+                    "source-layer": "placesgeojsonseq",
+                    "filter": ["all",
+                        ["has", "name"],
+                        [">", ["get", "confidence"], 0.75]
+                    ],
+                    "minzoom": 15, "maxzoom": 24,
+                    "layout": {
+                        "text-field": ["get", "name"],
+                        "text-font": ["Noto Sans Regular"],
+                        "text-max-width": 5,
+                        "text-size": 10,
+                        "text-line-height": 1,
+                        "icon-image": "places",
+                        "text-justify": "auto",
+                        "text-variable-anchor": ["literal", ["right", "left"]],
+                        "text-radial-offset": 0.8,
+                        "text-padding": 0
+                    },
+                    "paint": {
+                        "text-color": "hsl(245, 40%, 35%)",
+                        "text-halo-color": "hsl(0,0%,100%)", "text-halo-width": 1
+                    }
+                },
+
+                // Placenames (Daylight)
+                PLACENAMES.placeHighZoom,
+                PLACENAMES['label-place-midzoom']
+            ]
+        }
+    });
+
+    map.on('load', () => {
+        // Load the first image
+        map.loadImage("img/building-dot.png", (error, image) => {
+            if (error) throw error;
+            map.addImage('building', image);
+        });
+
+        // Load the second image
+        map.loadImage("img/places-dot.png", (error, image) => {
+            if (error) throw error;
+            map.addImage('places', image);
+        });
+
+        // Continue adding more images if needed
+
+        // Add interactivity:
+        // Create a popup, but don't add it to the map yet.
+        const popup = new maplibregl.Popup({
+            closeButton: true,
+            closeOnClick: true
+        });
+
+        // Feature Inspector Popup:
+        [
+            'residential','footway','primary','motorway','secondaryTertiary','parkingAisleUnknown',
+            'building_osm','building_esri','building_msft'
+        ].forEach(function(layer){
+            map.on('mouseenter', layer, (e) => {
+                map.getCanvas().style.cursor = 'pointer';
+            });
+
+            map.on('mouseout', layer, (e) => {
+                map.getCanvas().style.cursor = '';
+            });
+
+            map.on('click', layer, (e) => {
+                if (e.features.length > 0) {
+                    popup.setLngLat(e.lngLat)
+                        .setHTML(JSON.stringify(e.features[0].properties, null, 2))
+                        .addTo(map);
+                }
+            });
+        })
+
+    });
+
+    var extruded_view = false;
+
+    map.addControl(new maplibregl.NavigationControl());
+
+    map.addControl(new maplibregl.AttributionControl({
+        customAttribution: '<a href="https://overturemaps.org" target="_blank">&copy; OvertureMaps Foundation</a>, '+
+        '<a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap contributors</a>, '+
+        '<a href="https://daylightmap.org/" target="_blank">Daylight Map Distribution</a>'
+    }),'bottom-right');
+
+    // Function to zoom to a specific city
+    function zoomToCity(coordinates) {
+        map.jumpTo({
+            center: coordinates,
+            zoom: 14
+        });
+    }
+
+    function filterPlaces(val){
+        map.setFilter('placesLabel',["all",
+            ["has", "name"],
+            [">=", ["get", "confidence"], val/100]
+        ])
+    }
+
+    function toggleLayer(layerID, off=false, on=false) {
+        const layer = map.getLayer(layerID);
+        if (layer) {
+            if (off){
+                map.setLayoutProperty(layerID, 'visibility', 'none');
+            }else if (on){
+                map.setLayoutProperty(layerID, 'visibility', 'visible');
+            }else{
+                // Standard toggle
+                const visibility = map.getLayoutProperty(layerID, 'visibility');
+                if (visibility === 'visible' || visibility == undefined) {
+                    map.setLayoutProperty(layerID, 'visibility', 'none');
+                }else{
+                    map.setLayoutProperty(layerID, 'visibility', 'visible');
+                }
+            }
+            return map.getLayoutProperty(layerID, 'visibility');
+        }else{
+            return null
+        }
+    }
+
+    var layerGroups = {
+        "osmBuildingLayers" : ['buildingLabel_osm', 'buildingOffset_osm', 'building_osm'],
+        "esriBuildingLayers" : ['buildingLabel_esri', 'buildingOffset_esri', 'building_esri'],
+        "msftBuildingLayers" : ['buildingOffset_msft', 'building_msft'],
+        "allBuildingLayers" : Object.keys(BUILDINGS_2D),
+        "allExtrudedBuildingLayers" : Object.keys(BUILDINGS_3D),
+        "places": ['placesLabel'],
+        "roads": ['highwayLabel', 'residentialLabel', 'motorway', 'motorwayCasing', 'primary', 'secondaryTertiary', 'residential', 'parkingAisleUnknown', 'footway', 'primaryCasing', 'secondaryTertiaryCasing', 'residentialCasing', 'parkingAisleUnknownCasing', 'footwayCasing'],
+        "landcover": ['land','sand', 'wetland', 'forest'],
+        "water": ['water'],
+        "placenames": ['placeHighZoom','label-place-midzoom']
+    }
+
+    var buildingsOn = true
+    function toggleAllBuildings(){
+
+        buildingsOn = !buildingsOn;
+
+        ['osm','msft','esri'].forEach(function(source){
+            checkBox = document.getElementById(source+'_checkbox')
+            if(buildingsOn){
+                document.getElementById('allBuildingsButton').classList.add('active')
+                document.getElementById(source).classList.remove('hidden')
+                if (checkBox.checked){
+                    toggleBuildings(source, off=false, on=true)
+                }
+            }else{
+                document.getElementById('allBuildingsButton').classList.remove('active')
+                document.getElementById(source).classList.add('hidden')
+                // And then turn the layer off.
+                toggleBuildings(source, off=true, on=false)
+            }
+        })
+    }
+
+    function toggleBuildings(source, off=false, on=false){
+        if (extruded_view){
+            toggleLayer('buildingExtruded_'+ source, off, on)
+        }else{
+            toggleLayerGroup(source + 'BuildingLayers', off, on)
+        }
+    }
+
+    // Function to toggle an entire layer group on/off based on checkbox status
+    function toggleLayerGroup(layerGroup, off=false, on=false) {
+
+        var visibility;
+
+        layerGroups[layerGroup].forEach(layer => {
+            visibility = toggleLayer(layer, off, on); // Call the existing toggleLayer function to toggle individual layers
+        });
+
+        var button = document.getElementById(layerGroup)
+
+        // Set active / visible
+        if (visibility == 'visible'){
+            if(button && visibility == 'visible'){
+                button.classList.add("active")
+            }
+            if (layerGroup == 'places'){
+               document.getElementById('placesThreshold').classList.remove("hidden")
+            }
+        }else{
+            if(button){
+                button.classList.remove("active")
+            }
+            if (layerGroup == 'places'){
+               document.getElementById('placesThreshold').classList.add("hidden")
+            }
+        }
+    }
+
+    function turnOnExtrudedBuildings() {
+        extruded_view = true
+
+        // Pitch the map 50 degrees
+        map.setPitch(50);
+
+        // Turn off 2D Buildings
+        toggleLayerGroup('allBuildingLayers', off=true, on=false)
+
+        // Turn on 3D Buildings
+        toggleLayerGroup('allExtrudedBuildingLayers', off=false, on=true)
+
+        document.getElementById('osm_checkbox').checked=true
+        document.getElementById('msft_checkbox').checked=true
+        document.getElementById('esri_checkbox').checked=true
+
+        document.getElementById('allBuildingsButton').classList.add('active')
+        document.getElementById('msft').classList.remove('hidden')
+        document.getElementById('esri').classList.remove('hidden')
+        document.getElementById('osm').classList.remove('hidden')
+
+        // Turn off places
+        // toggleLayerGroup('places', off=true, on=false)
+    }
+
+
+    // Function to reset the map view to default
+    function resetMap() {
+        // Reset pitch to 0 degrees
+        map.setPitch(0);
+
+        // Reset bearing
+        map.setBearing(0);
+
+        extruded_view = false;
+
+        // Turn off 3D Buildings
+        toggleLayerGroup('allExtrudedBuildingLayers', off=true, on=false)
+
+        // Turn on 2D Buildings
+        toggleLayerGroup('allBuildingLayers', off=false, on=true)
+
+        document.getElementById('osm_checkbox').checked=true
+        document.getElementById('msft_checkbox').checked=true
+        document.getElementById('esri_checkbox').checked=true
+
+        document.getElementById('allBuildingsButton').classList.add('active')
+        document.getElementById('msft').classList.remove('hidden')
+        document.getElementById('esri').classList.remove('hidden')
+        document.getElementById('osm').classList.remove('hidden')
+
+        // Turn on Places
+        // toggleLayerGroup('places', off=false, on=true)
+
+        // Reset the map center and zoom to the initial values
+        // map.jumpTo({
+        //     center: [-122.332027, 47.603323],
+        //     zoom: 14
+        // });
+    }
+
+
+</script>
